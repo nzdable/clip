@@ -1,0 +1,12 @@
+# Build output
+/clip
+*.new
+*.iconset
+*.app/
+
+# Never commit clipboard history or screenshots
+.clip_history.json
+clip-ocr.png
+clip-grab.png
+
+.DS_Store
