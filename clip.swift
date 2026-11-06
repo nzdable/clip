@@ -79,8 +79,11 @@ let arg = CommandLine.arguments.dropFirst().first
 switch arg {
 case "watch":
     var last = pb.changeCount
+    // Started by Clip.app: stop when the app is gone.
+    let parent = ProcessInfo.processInfo.environment["CLIP_PARENT_PID"].flatMap { Int32($0) }
     while true {
         usleep(500_000)
+        if let parent, getppid() != parent { exit(0) }
         guard pb.changeCount != last else { continue }
         last = pb.changeCount
         if !skipTypes.isDisjoint(with: pb.types ?? []) { continue }

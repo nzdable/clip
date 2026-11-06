@@ -5,7 +5,8 @@ import Carbon
 import ServiceManagement
 import SwiftUI
 
-let clipBin = NSHomeDirectory() + "/.local/bin/clip"
+// The CLI ships inside the app (Contents/MacOS/clip-cli).
+let clipBin = Bundle.main.url(forAuxiliaryExecutable: "clip-cli")!.path
 let histURL = URL(fileURLWithPath: NSHomeDirectory() + "/.clip_history.json")
 
 // Same shape as `Clip` in clip.swift; keep them in sync.
@@ -206,6 +207,36 @@ class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         status.menu = menu
         registerHotKey()
+        startWatcher()
+        // Clips are only saved while the app runs, so start at login by
+        // default. Done once; the menu toggle can turn it off.
+        if !UserDefaults.standard.bool(forKey: "loginSet") {
+            try? SMAppService.mainApp.register()
+            UserDefaults.standard.set(true, forKey: "loginSet")
+        }
+    }
+
+    // `clip-cli watch` saves every copy. It quits on its own if this app
+    // dies (CLIP_PARENT_PID), and is restarted here if it crashes.
+    var watcher: Process?
+    var quitting = false
+
+    func startWatcher() {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: clipBin)
+        p.arguments = ["watch"]
+        p.environment = ["CLIP_PARENT_PID": String(getpid()), "HOME": NSHomeDirectory()]
+        p.terminationHandler = { [weak self] _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                if self?.quitting == false { self?.startWatcher() }
+            }
+        }
+        do { try p.run(); watcher = p } catch { NSSound.beep() }
+    }
+
+    func applicationWillTerminate(_ n: Notification) {
+        quitting = true
+        watcher?.terminate()
     }
 
     // Rebuild the menu each time it opens so history is always fresh.
