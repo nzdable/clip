@@ -45,7 +45,9 @@ rm -rf ~/.local/bin/clip ~/Applications/Clip.app ~/Library/LaunchAgents/com.nzda
 | `clip clear` | Wipe history |
 | `clip ocr [img]` | Grab text from a screen area (or image file) |
 
-Menu bar app: ⌘⇧2 grabs text from the screen.
+Menu bar app:
+- **⌘⇧1** opens the history window. Each clip shows when you copied it. Type to search, click or press Enter to copy, Esc to close. **Clear all** (tap twice) wipes the history.
+- **⌘⇧2** grabs text from the screen.
 
 ## Privacy
 

@@ -15,13 +15,23 @@ let pb = NSPasteboard.general
 // Every file we create (history, its atomic-write temp copy) starts owner-only.
 umask(0o077)
 
-func load() -> [String] {
+// One saved copy. `date` is nil for items saved before timestamps existed.
+// Same shape is decoded by ClipApp.swift; keep them in sync.
+struct Clip: Codable { var text: String; var date: Date? }
+
+func load() -> [Clip] {
     guard let d = try? Data(contentsOf: histURL) else { return [] }
-    return (try? JSONDecoder().decode([String].self, from: d)) ?? []
+    let dec = JSONDecoder()
+    dec.dateDecodingStrategy = .iso8601
+    if let items = try? dec.decode([Clip].self, from: d) { return items }
+    // Old format: plain list of strings.
+    return ((try? dec.decode([String].self, from: d)) ?? []).map { Clip(text: $0, date: nil) }
 }
 
-func save(_ items: [String]) {
-    let d = try! JSONEncoder().encode(items)
+func save(_ items: [Clip]) {
+    let enc = JSONEncoder()
+    enc.dateEncodingStrategy = .iso8601
+    let d = try! enc.encode(items)
     try? d.write(to: histURL, options: .atomic)
     // Clipboard can hold sensitive text: owner-only file.
     try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: histURL.path)
@@ -30,7 +40,7 @@ func save(_ items: [String]) {
 func list(_ query: String? = nil) {
     let items = load()
     if items.isEmpty { print("History empty. Is `clip watch` running?"); return }
-    for (i, s) in items.enumerated() {
+    for (i, s) in items.map(\.text).enumerated() {
         if let q = query, !s.localizedCaseInsensitiveContains(q) { continue }
         let lines = s.split(separator: "\n", omittingEmptySubsequences: false)
         var line = String(lines.first ?? "").trimmingCharacters(in: .whitespaces)
@@ -55,8 +65,8 @@ case "watch":
         last = pb.changeCount
         if !skipTypes.isDisjoint(with: pb.types ?? []) { continue }
         guard let s = pb.string(forType: .string), !s.isEmpty else { continue }
-        var items = load().filter { $0 != s }
-        items.insert(s, at: 0)
+        var items = load().filter { $0.text != s }
+        items.insert(Clip(text: s, date: Date()), at: 0)
         save(Array(items.prefix(maxItems)))
     }
 case "ocr":
@@ -90,7 +100,7 @@ case let n? where Int(n) != nil:
     let items = load(), i = Int(n)! - 1
     guard items.indices.contains(i) else { fputs("No item \(n).\n", stderr); exit(1) }
     pb.clearContents()
-    pb.setString(items[i], forType: .string)
+    pb.setString(items[i].text, forType: .string)
     print("Copied item \(n).")
 case let q?:
     list(q)
