@@ -3,7 +3,23 @@
 set -e
 cd "$(dirname "$0")"
 
+mkdir -p ~/.local/bin
 swiftc -O clip.swift -o clip.new && mv clip.new ~/.local/bin/clip
+
+# Run `clip watch` in the background at login (restarts it on the new build).
+PLIST=~/Library/LaunchAgents/com.nzdable.clip.plist
+mkdir -p ~/Library/LaunchAgents
+cat > "$PLIST" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.nzdable.clip</string>
+  <key>ProgramArguments</key><array><string>$HOME/.local/bin/clip</string><string>watch</string></array>
+  <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
+</dict></plist>
+EOF
+launchctl bootout gui/$(id -u)/com.nzdable.clip 2>/dev/null || true
+launchctl bootstrap gui/$(id -u) "$PLIST"
 
 APP=~/Applications/Clip.app
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
