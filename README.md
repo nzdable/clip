@@ -53,3 +53,7 @@ Menu bar app: ⌘⇧2 grabs text from the screen.
 - Items marked secret by password managers (`ConcealedType` / `TransientType`) are never saved.
 - OCR screenshots are deleted right after the text is read.
 - Last 200 items are kept. Run `clip clear` to wipe them.
+
+## License
+
+[MIT](LICENSE)
