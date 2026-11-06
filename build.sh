@@ -18,8 +18,9 @@ cat > "$PLIST" <<EOF
   <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
 </dict></plist>
 EOF
-launchctl bootout gui/$(id -u)/com.nzdable.clip 2>/dev/null || true
-launchctl bootstrap gui/$(id -u) "$PLIST"
+# Load it if new; otherwise restart it so it runs the fresh binary.
+launchctl bootstrap gui/$(id -u) "$PLIST" 2>/dev/null ||
+  launchctl kickstart -k gui/$(id -u)/com.nzdable.clip
 
 APP=~/Applications/Clip.app
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
