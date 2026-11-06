@@ -4,6 +4,7 @@
 //   clip <word>   list items containing <word>
 //   clip <N>      copy item N back to the clipboard
 //   clip clear    wipe history
+//   clip scrub    remove saved items that look like keys/tokens/passwords
 //   clip ocr [img] grab text from a screen area (or image file)
 import AppKit
 import Vision
@@ -55,6 +56,25 @@ let skipTypes: Set<NSPasteboard.PasteboardType> = [
     .init("org.nspasteboard.TransientType"),
 ]
 
+// Text that looks like a key/token/password is never saved either.
+// Errs on the side of skipping: a skipped clip is still on the clipboard.
+let secretPatterns = [
+    #"(AKIA|ASIA)[0-9A-Z]{16}"#,                              // AWS access key id
+    #"gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,}"#, // GitHub tokens
+    #"-----BEGIN [A-Z ]*PRIVATE KEY"#,                         // SSH / TLS private keys
+    #"xox[abprs]-[A-Za-z0-9-]{10,}"#,                          // Slack tokens
+    #"sk-(ant-|proj-)?[A-Za-z0-9_-]{20,}"#,                    // Anthropic / OpenAI keys
+    #"sk_live_[0-9A-Za-z]{20,}"#,                              // Stripe live keys
+    #"AIza[0-9A-Za-z_-]{35}"#,                                 // Google API keys
+    #"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"#, // JWTs
+    #"[a-z][a-z0-9+.-]*://[^\s:/@]+:[^\s@/]+@"#,               // URLs with user:password@
+    #"(?i)(password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key)[\"']?\s*[:=]\s*[\"']?[^\s\"']{8,}"#, // .env style
+]
+
+func looksSecret(_ s: String) -> Bool {
+    secretPatterns.contains { s.range(of: $0, options: .regularExpression) != nil }
+}
+
 let arg = CommandLine.arguments.dropFirst().first
 switch arg {
 case "watch":
@@ -64,7 +84,7 @@ case "watch":
         guard pb.changeCount != last else { continue }
         last = pb.changeCount
         if !skipTypes.isDisjoint(with: pb.types ?? []) { continue }
-        guard let s = pb.string(forType: .string), !s.isEmpty else { continue }
+        guard let s = pb.string(forType: .string), !s.isEmpty, !looksSecret(s) else { continue }
         var items = load().filter { $0.text != s }
         items.insert(Clip(text: s, date: Date()), at: 0)
         save(Array(items.prefix(maxItems)))
@@ -93,6 +113,10 @@ case "ocr":
     pb.clearContents()
     pb.setString(text, forType: .string)  // watcher adds it to history
     print(text)
+case "scrub":
+    let items = load(), kept = items.filter { !looksSecret($0.text) }
+    if kept.count != items.count { save(kept) }
+    print("Removed \(items.count - kept.count) item(s) that look like keys.")
 case "clear":
     save([])
     print("History cleared.")

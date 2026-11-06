@@ -43,6 +43,7 @@ rm -rf ~/.local/bin/clip ~/Applications/Clip.app ~/Library/LaunchAgents/com.nzda
 | `clip <word>` | List items containing `<word>` |
 | `clip <N>` | Copy item N back to the clipboard |
 | `clip clear` | Wipe history |
+| `clip scrub` | Remove saved items that look like keys or passwords |
 | `clip ocr [img]` | Grab text from a screen area (or image file) |
 
 Menu bar app:
@@ -53,6 +54,8 @@ Menu bar app:
 
 - History is stored only on your Mac in `~/.clip_history.json` (owner-only, `0600`). Nothing is sent anywhere.
 - Items marked secret by password managers (`ConcealedType` / `TransientType`) are never saved.
+- Text that looks like a key is never saved either: AWS, GitHub, Slack, Stripe, Google, Anthropic/OpenAI keys, private keys, JWTs, `user:password@` URLs, and `.env` lines like `PASSWORD=...`. It stays on your clipboard, so pasting still works.
+- `clip scrub` removes anything key-like that was saved before.
 - OCR screenshots are deleted right after the text is read.
 - Last 200 items are kept. Run `clip clear` to wipe them.
 
