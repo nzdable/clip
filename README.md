@@ -1,3 +1,5 @@
+<p align="center"><img src="logo.png" alt="Clip logo" width="200"></p>
+
 # Clip
 
 Tiny clipboard history + screen text grabber (OCR) for macOS. A `clip` CLI and a menu bar app.
